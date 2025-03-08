@@ -33,8 +33,8 @@ public class PropertyController {
             @RequestParam("propertyTitle") String propertyTitle,
             @RequestParam("description") String description,
             @RequestParam("price") Double price,
-            @RequestParam("discountedPrice") Double discountedPrice,
-            @RequestParam("discountPercent") Double discountPercent,
+            @RequestParam(value = "discountedPrice", required = false) Double discountedPrice,
+            @RequestParam(value = "discountPercent", required = false) Double discountPercent,
             @RequestParam("location") String location,
             @RequestParam("propertyCategory") String propertyCategory,
             @RequestParam("numberOfBedrooms") Integer numberOfBedrooms,
@@ -72,6 +72,63 @@ public class PropertyController {
         return ResponseEntity.ok(savedProperty);
     }
 
+    // Update an existing property
+    @PutMapping(value = "/update/{id}", consumes = {"multipart/form-data"})
+    public ResponseEntity<?> updateProperty(
+            @PathVariable Long id,
+            @RequestParam("propertyTitle") String propertyTitle,
+            @RequestParam("description") String description,
+            @RequestParam("price") Double price,
+            @RequestParam(value = "discountedPrice", required = false) Double discountedPrice,
+            @RequestParam(value = "discountPercent", required = false) Double discountPercent,
+            @RequestParam("location") String location,
+            @RequestParam("propertyCategory") String propertyCategory,
+            @RequestParam("numberOfBedrooms") Integer numberOfBedrooms,
+            @RequestParam("numberOfBathrooms") Integer numberOfBathrooms,
+            @RequestParam("squareFeet") Double squareFeet,
+            @RequestParam("propertyType") String propertyType,
+            @RequestParam("sellerId") Long sellerId,
+            @RequestPart(value = "images", required = false) MultipartFile[] images
+    ) {
+        logger.info("Updating property with ID: " + id);
+
+        Optional<Property> propertyOptional = propertyService.getPropertyById(id);
+        if (propertyOptional.isEmpty()) {
+            return ResponseEntity.badRequest().body("Property not found with ID: " + id);
+        }
+
+        Optional<User> sellerOptional = userRepository.findById(sellerId);
+        if (sellerOptional.isEmpty()) {
+            return ResponseEntity.badRequest().body("Seller with ID " + sellerId + " not found");
+        }
+
+        Property property = propertyOptional.get();
+        User seller = sellerOptional.get();
+
+        // Check if the seller owns this property
+        if (!property.getSeller().getId().equals(sellerId)) {
+            return ResponseEntity.badRequest().body("You are not authorized to update this property");
+        }
+
+        // Update property fields
+        property.setPropertyTitle(propertyTitle);
+        property.setDescription(description);
+        property.setPrice(price);
+        property.setDiscountedPrice(discountedPrice);
+        property.setDiscountPercent(discountPercent);
+        property.setLocation(location);
+        property.setPropertyCategory(propertyCategory);
+        property.setNumberOfBedrooms(numberOfBedrooms);
+        property.setNumberOfBathrooms(numberOfBathrooms);
+        property.setSquareFeet(squareFeet);
+        property.setPropertyType(propertyType);
+        property.setSeller(seller);
+
+        Property updatedProperty = propertyService.updateProperty(property, images);
+        logger.info("Property updated successfully with ID: " + id);
+        return ResponseEntity.ok(updatedProperty);
+    }
+
     // Get all properties
     @GetMapping("/all")
     public ResponseEntity<List<Property>> getAllProperties() {
@@ -107,33 +164,6 @@ public class PropertyController {
         }
     }
 
-    // Update an existing property
-    @PutMapping("/update/{id}")
-    public ResponseEntity<?> updateProperty(@PathVariable Long id, @RequestBody Property updatedProperty) {
-        logger.info("Updating property with ID: " + id);
-        Optional<Property> propertyOptional = propertyService.getPropertyById(id);
-
-        if (propertyOptional.isEmpty()) {
-            return ResponseEntity.badRequest().body("Property not found with ID: " + id);
-        }
-
-        Property property = propertyOptional.get();
-        property.setPropertyTitle(updatedProperty.getPropertyTitle());
-        property.setDescription(updatedProperty.getDescription());
-        property.setPrice(updatedProperty.getPrice());
-        property.setDiscountedPrice(updatedProperty.getDiscountedPrice());
-        property.setDiscountPercent(updatedProperty.getDiscountPercent());
-        property.setLocation(updatedProperty.getLocation());
-        property.setPropertyCategory(updatedProperty.getPropertyCategory());
-        property.setNumberOfBedrooms(updatedProperty.getNumberOfBedrooms());
-        property.setNumberOfBathrooms(updatedProperty.getNumberOfBathrooms());
-        property.setSquareFeet(updatedProperty.getSquareFeet());
-        property.setPropertyType(updatedProperty.getPropertyType());
-
-        Property savedProperty = propertyService.updateProperty(property);
-        return ResponseEntity.ok(savedProperty);
-    }
-
     // Delete property by ID
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<?> deleteProperty(@PathVariable Long id) {
@@ -147,7 +177,7 @@ public class PropertyController {
         }
     }
 
-    // ✅ New endpoint to update property status
+    // Update property status
     @PutMapping("/{id}/status")
     public ResponseEntity<?> updatePropertyStatus(@PathVariable Long id, @RequestParam PropertyStatus status) {
         logger.info("Updating status for property with ID: " + id);

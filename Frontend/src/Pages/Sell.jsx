@@ -30,6 +30,7 @@ const Sell = () => {
     images: [],
   });
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [sellerId, setSellerId] = useState(null);
   const [propertyId, setPropertyId] = useState("");
   const [isEditing, setIsEditing] = useState(false);
@@ -54,34 +55,44 @@ const Sell = () => {
   // Fetch seller ID from local storage
   useEffect(() => {
     const id = localStorage.getItem("id");
-    console.log("Retrieved seller ID:", id);
     if (id) {
       setSellerId(Number(id));
     } else {
       setError("Seller ID not found. Please log in.");
+      navigate("/login");
     }
-  }, []);
+  }, [navigate]);
 
   // Fetch property data for update
   const fetchPropertyData = async (propertyId) => {
     const token = localStorage.getItem("token");
+    if (!token) {
+      setError("Please log in to continue");
+      navigate("/login");
+      return;
+    }
+
     try {
       const response = await fetch(`http://localhost:9090/api/properties/${propertyId}`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch property data.");
+        throw new Error("Property not found or you don't have permission to edit it");
       }
 
       const data = await response.json();
-      setFormData(data);
+      setFormData({
+        ...data,
+        images: [],
+      });
       setIsEditing(true);
+      setSuccess("Property data loaded successfully");
     } catch (error) {
-      console.error("Error fetching property data:", error);
       setError(error.message);
     }
   };
@@ -92,14 +103,20 @@ const Sell = () => {
       setError("Please enter a valid property ID.");
       return;
     }
+    setError(null);
+    setSuccess(null);
     fetchPropertyData(propertyId);
   };
 
   // Handle delete button click
   const handleDelete = async () => {
     const token = localStorage.getItem("token");
-    if (!token || !sellerId) {
-      setError("User not authenticated. Please log in.");
+    if (!token || !sellerId || !propertyId) {
+      setError("Please provide a valid property ID and ensure you're logged in");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to delete this property?")) {
       return;
     }
 
@@ -108,16 +125,20 @@ const Sell = () => {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
 
       if (!response.ok) {
-        throw new Error("Failed to delete property.");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete property");
       }
 
-      navigate("/buy");
+      setSuccess("Property deleted successfully");
+      setTimeout(() => {
+        navigate("/buy");
+      }, 1500);
     } catch (error) {
-      console.error("Error deleting property:", error);
       setError(error.message);
     }
   };
@@ -126,10 +147,12 @@ const Sell = () => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError(null);
+    setSuccess(null);
 
     const token = localStorage.getItem("token");
     if (!token || !sellerId) {
-      setError("User not authenticated. Please log in.");
+      setError("Please log in to continue");
+      navigate("/login");
       return;
     }
 
@@ -137,11 +160,10 @@ const Sell = () => {
     Object.keys(formData).forEach((key) => {
       if (key === "images") {
         Array.from(formData.images).forEach((file) => data.append("images", file));
-      } else {
+      } else if (formData[key] !== null && formData[key] !== undefined) {
         data.append(key, formData[key]);
       }
     });
-
     data.append("sellerId", sellerId);
 
     try {
@@ -160,12 +182,14 @@ const Sell = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to list property. Please try again.");
+        throw new Error(errorData.message || "Failed to process property listing");
       }
 
-      navigate("/buy");
+      setSuccess(isEditing ? "Property updated successfully" : "Property listed successfully");
+      setTimeout(() => {
+        navigate("/buy");
+      }, 1500);
     } catch (error) {
-      console.error("Error submitting form:", error);
       setError(error.message);
     }
   };
@@ -175,32 +199,37 @@ const Sell = () => {
       <Typography variant="h4" gutterBottom>
         {isEditing ? "Edit Your Property" : "List Your Property"}
       </Typography>
-      {error && <Alert severity="error">{error}</Alert>}
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
       {/* Property ID Section */}
       <Box sx={{ mb: 4 }}>
         <TextField
-          label="Property ID"
+          label="Property ID (for update/delete)"
           value={propertyId}
           onChange={(e) => setPropertyId(e.target.value)}
           fullWidth
           margin="normal"
         />
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleUpdateClick}
-          sx={{ mr: 2 }}
-        >
-          Update
-        </Button>
-        <Button
-          variant="contained"
-          color="secondary"
-          onClick={handleDelete}
-        >
-          Delete
-        </Button>
+        <Box sx={{ mt: 2 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleUpdateClick}
+            sx={{ mr: 2 }}
+            disabled={!propertyId}
+          >
+            Load for Update
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={handleDelete}
+            disabled={!propertyId}
+          >
+            Delete Property
+          </Button>
+        </Box>
       </Box>
 
       {/* Add/Update Property Form */}
@@ -294,24 +323,45 @@ const Sell = () => {
         />
         <FormControl fullWidth margin="normal">
           <InputLabel>Property Category</InputLabel>
-          <Select name="propertyCategory" value={formData.propertyCategory} onChange={handleChange} required>
+          <Select 
+            name="propertyCategory" 
+            value={formData.propertyCategory} 
+            onChange={handleChange} 
+            required
+          >
             <MenuItem value="Residential">Residential</MenuItem>
             <MenuItem value="Commercial">Commercial</MenuItem>
             <MenuItem value="Industrial">Industrial</MenuItem>
             <MenuItem value="Land">Land</MenuItem>
           </Select>
         </FormControl>
-
         <FormControl fullWidth margin="normal">
           <InputLabel>Property Type</InputLabel>
-          <Select name="propertyType" value={formData.propertyType} onChange={handleChange} required>
+          <Select 
+            name="propertyType" 
+            value={formData.propertyType} 
+            onChange={handleChange} 
+            required
+          >
             <MenuItem value="BUY">For Buy</MenuItem>
             <MenuItem value="RENT">For Rent</MenuItem>
           </Select>
         </FormControl>
-
-        <input type="file" multiple onChange={handleFileChange} accept="image/*" />
-        <Button type="submit" variant="contained" color="primary" fullWidth>
+        <input 
+          type="file" 
+          multiple 
+          onChange={handleFileChange} 
+          accept="image/*" 
+          disabled={!isEditing && formData.images.length > 0}
+          style={{ marginTop: '16px' }}
+        />
+        <Button 
+          type="submit" 
+          variant="contained" 
+          color="primary" 
+          fullWidth
+          sx={{ mt: 2 }}
+        >
           {isEditing ? "Update Listing" : "Submit Listing"}
         </Button>
       </form>

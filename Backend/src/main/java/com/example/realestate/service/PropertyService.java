@@ -12,8 +12,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
-
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 @Service
@@ -39,6 +41,44 @@ public class PropertyService {
         return propertyRepository.save(property);
     }
 
+    // Updated method to handle property updates with images
+    public Property updateProperty(Property property, MultipartFile[] images) {
+        // Fetch the existing property to preserve fields not sent in the request
+        Optional<Property> existingPropertyOpt = propertyRepository.findById(property.getId());
+        if (existingPropertyOpt.isEmpty()) {
+            throw new RuntimeException("Property not found with ID: " + property.getId());
+        }
+        Property existingProperty = existingPropertyOpt.get();
+
+        // Update fields
+        existingProperty.setPropertyTitle(property.getPropertyTitle());
+        existingProperty.setDescription(property.getDescription());
+        existingProperty.setPrice(property.getPrice());
+        existingProperty.setDiscountedPrice(property.getDiscountedPrice());
+        existingProperty.setDiscountPercent(property.getDiscountPercent());
+        existingProperty.setLocation(property.getLocation());
+        existingProperty.setPropertyCategory(property.getPropertyCategory());
+        existingProperty.setNumberOfBedrooms(property.getNumberOfBedrooms());
+        existingProperty.setNumberOfBathrooms(property.getNumberOfBathrooms());
+        existingProperty.setSquareFeet(property.getSquareFeet());
+        existingProperty.setPropertyType(property.getPropertyType());
+        existingProperty.setSeller(property.getSeller());
+
+        // Handle images: Replace existing images if new ones are provided
+        if (images != null && images.length > 0) {
+            createUploadDirectoryIfNeeded();
+            List<String> newImageUrls = saveImages(images);
+            existingProperty.setImageUrls(newImageUrls); // Replace old images
+        } // Else, keep existing images
+
+        return propertyRepository.save(existingProperty);
+    }
+
+    // Keep the old method for backward compatibility (if needed)
+    public Property updateProperty(Property property) {
+        return propertyRepository.save(property);
+    }
+
     public Property findPropertyById(Long id) throws PropertyException {
         return propertyRepository.findById(id)
                 .orElseThrow(() -> new PropertyException("Property not found with ID: " + id));
@@ -56,10 +96,6 @@ public class PropertyService {
         return propertyRepository.findByPropertyType(type);
     }
 
-    public Property updateProperty(Property property) {
-        return propertyRepository.save(property);
-    }
-
     public boolean deleteProperty(Long id) {
         if (propertyRepository.existsById(id)) {
             propertyRepository.deleteById(id);
@@ -68,7 +104,6 @@ public class PropertyService {
         return false;
     }
 
-    // ✅ New method to update property status
     public Property updatePropertyStatus(Long id, PropertyStatus status) throws PropertyException {
         Property property = findPropertyById(id);
         property.setStatus(status);

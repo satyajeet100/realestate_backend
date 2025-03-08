@@ -23,7 +23,7 @@ const PropertyDetails = () => {
   const { id } = useParams(); // Property ID from the URL
   const navigate = useNavigate();
   const [property, setProperty] = useState(null);
-  const [rating, setRating] = useState(0); // State to store the average rating
+  const [rating, setRating] = useState(4.3); 
   const [userRating, setUserRating] = useState(0); // State to store the user's rating input
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -57,24 +57,6 @@ const PropertyDetails = () => {
           setCoordinates({ lat, lon });
         } else {
           setError("Could not find the location on the map.");
-        }
-
-        // Fetch ratings for the user (assuming userId is available in the property data)
-        const userId = propertyData.seller.id; // Replace with the correct user ID field
-        const ratingsResponse = await fetch(`http://localhost:9090/ratings?userId=${userId}`, {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!ratingsResponse.ok) throw new Error(`Failed to fetch ratings. Status: ${ratingsResponse.status}`);
-
-        const ratingsData = await ratingsResponse.json();
-
-        // Calculate average rating
-        if (ratingsData.length > 0) {
-          const totalRating = ratingsData.reduce((sum, rating) => sum + rating.rating, 0);
-          const averageRating = totalRating / ratingsData.length;
-          setRating(averageRating);
         }
       } catch (error) {
         console.error("Fetch error:", error);
@@ -111,24 +93,6 @@ const PropertyDetails = () => {
       const data = await response.json();
       setSuccessMessage("Rating submitted successfully!");
       setUserRating(0); // Reset the user's rating input
-
-      // Refetch ratings to update the average
-      const userId = property.seller.id; // Replace with the correct user ID field
-      const ratingsResponse = await fetch(`http://localhost:9090/ratings?userId=${userId}`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!ratingsResponse.ok) throw new Error(`Failed to fetch updated ratings. Status: ${ratingsResponse.status}`);
-
-      const ratingsData = await ratingsResponse.json();
-
-      // Recalculate average rating
-      if (ratingsData.length > 0) {
-        const totalRating = ratingsData.reduce((sum, rating) => sum + rating.rating, 0);
-        const averageRating = totalRating / ratingsData.length;
-        setRating(averageRating);
-      }
     } catch (error) {
       console.error("Error submitting rating:", error);
       setError(error.message);
@@ -179,7 +143,7 @@ const PropertyDetails = () => {
             <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
               <Rating
                 name="property-rating"
-                value={rating || 0} // Use the fetched average rating
+                value={rating} // Use the hardcoded fake average rating
                 precision={0.5} // Allow half-star ratings
                 readOnly // Make the rating read-only
               />

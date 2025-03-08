@@ -37,7 +37,6 @@ const Buy = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Parse query parameters from the URL
     const queryParams = new URLSearchParams(location.search);
     setSearchParams({
       location: queryParams.get("location") || "",
@@ -118,7 +117,7 @@ const Buy = () => {
     <Container sx={{ mt: 8, mb: 4 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Typography variant="h4" fontWeight="bold">
-          Available Properties
+          Available Properties for Buy
         </Typography>
         <Button
           variant="contained"
@@ -130,7 +129,6 @@ const Buy = () => {
         </Button>
       </Box>
 
-      {/* Live Search Filters */}
       <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
         <Box display="flex" gap={2} flexWrap="wrap">
           <TextField label="Location" name="location" value={searchParams.location} onChange={handleSearchChange} placeholder="Enter location" sx={{ flex: 1 }} />
@@ -143,47 +141,27 @@ const Buy = () => {
       {loading && <CircularProgress />}
       {error && <Typography color="error">{error}</Typography>}
 
-      {/* Properties Grid */}
       <Grid container spacing={4}>
         {filteredProperties.map((property) => (
           <Grid item key={property.id} xs={12} sm={6} md={4}>
-            <Card
-              sx={{
-                borderRadius: 2,
-                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
-                transition: "transform 0.3s ease, box-shadow 0.3s ease",
-                "&:hover": {
-                  transform: "scale(1.03)",
-                  boxShadow: "0 6px 16px rgba(0, 0, 0, 0.2)",
-                },
-              }}
-            >
+            <Card sx={{
+              borderRadius: 2,
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+              transition: "transform 0.3s ease, box-shadow 0.3s ease",
+              "&:hover": {
+                transform: "scale(1.03)",
+                boxShadow: "0 6px 16px rgba(0, 0, 0, 0.2)",
+              },
+            }}>
               <CardMedia component="img" height="250" image={property.imageUrls?.[0] || "default.jpg"} alt={property.propertyTitle} sx={{ objectFit: "cover" }} />
               <IconButton onClick={() => handleAddToWishlist(property)} sx={{ position: "absolute", top: 8, right: 8 }}>
                 {wishlist.some((item) => item.id === property.id) ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
               </IconButton>
               <CardContent>
                 <Typography variant="h6" fontWeight="bold">{property.propertyTitle}</Typography>
-                <Typography variant="body2" color="textSecondary">{property.description}</Typography>
-
-                {/* Display Property Details */}
-                <Typography variant="body2" fontWeight="bold" color="secondary">
-                  Location: {property.location || "Not specified"}
-                </Typography>
-                <Typography variant="body2" fontWeight="bold">
-                  Size: {property.squareFeet ? `${property.squareFeet} sq ft` : "N/A"}
-                </Typography>
-                <Typography variant="body2" fontWeight="bold">
-                  Category: {property.propertyCategory || "N/A"}
-                </Typography>
-
                 <Typography variant="body1" color="primary" mt={1}>
                   ₹{property.price.toLocaleString("en-IN")} | {property.discountPercent}% Off
                 </Typography>
-                <Typography variant="body2" fontWeight="bold">
-                  Discounted Price: ₹{property.discountedPrice.toLocaleString("en-IN")}
-                </Typography>
-
                 <Box display="flex" gap={2} mt={2}>
                   <Button variant="contained" color="primary" onClick={() => handleViewDetails(property.id)}>
                     View Details
